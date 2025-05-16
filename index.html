@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Web App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.9.0/src/sha256.min.js"></script>
+  <style>
+    /* Custom Dropdown Animation */
+    select {
+      transition: all 0.3s ease;
+    }
+    select:focus + .dropdown-options {
+      animation: slideDown 0.3s ease forwards;
+    }
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    /* Loading Spinner */
+    .spinner {
+      display: none;
+      animation: pulse 1.5s infinite;
+    }
+    .spinner.active {
+      display: inline-block;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center">
+  <div class="container max-w-2xl mx-auto p-6">
+    <h1 class="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-400 to-purple-500 text-transparent bg-clip-text">Crypto Web App</h1>
+    
+    <!-- Balance Card -->
+    <div class="bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
+      <h2 class="text-xl font-semibold mb-4">Your Balance</h2>
+      <div class="flex items-center justify-between">
+        <p id="balance-display" class="text-2xl font-bold text-blue-400">Balance: Loading...</p>
+        <button id="check-balance-button" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300 transform hover:scale-105">Refresh</button>
+      </div>
+    </div>
+
+    <!-- Transaction Form -->
+    <div class="bg-gray-800 rounded-xl shadow-lg p-6">
+      <h2 class="text-xl font-semibold mb-4">Send Transaction</h2>
+      <div class="space-y-4">
+        <div>
+          <label for="node-select" class="block text-sm font-medium mb-1">Select Node</label>
+          <select id="node-select" class="w-full bg-gray-700 text-white rounded-lg p-2 focus:ring-2 focus:ring-blue-500 transition duration-200"></select>
+        </div>
+        <div>
+          <label for="to" class="block text-sm font-medium mb-1">To (Select Recipient)</label>
+          <select id="to" class="w-full bg-gray-700 text-white rounded-lg p-2 focus:ring-2 focus:ring-blue-500 transition duration-200">
+            <option value="">Select recipient</option>
+            <option value="Ahmed">Ahmed</option>
+            <option value="Magdy">Magdy</option>
+            <option value="Hazrd">Hazrd</option>
+            <option value="Ashraf">Ashraf</option>
+            <option value="Mostafa">Mostafa</option>
+            <option value="Doctor">Doctor</option>
+          </select>
+        </div>
+        <div>
+          <label for="amount" class="block text-sm font-medium mb-1">Amount</label>
+          <input type="number" id="amount" min="1" placeholder="Enter amount" class="w-full bg-gray-700 text-white rounded-lg p-2 focus:ring-2 focus:ring-blue-500 transition duration-200">
+        </div>
+        <div>
+          <label for="fee" class="block text-sm font-medium mb-1">Fee</label>
+          <input type="number" id="fee" min="1" placeholder="Enter fee" class="w-full bg-gray-700 text-white rounded-lg p-2 focus:ring-2 focus:ring-blue-500 transition duration-200">
+        </div>
+        <button id="send-button" class="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition duration-300 transform hover:scale-105 flex items-center justify-center">
+          <span id="send-text">Send Transaction</span>
+          <span id="loading-spinner" class="spinner active:ml-2 text-xl hidden">...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (typeof elliptic === "undefined") {
+      console.error("elliptic library not loaded");
+    } else {
+      console.log("elliptic library loaded successfully");
+    }
+
+    const curve = new elliptic.ec("secp256k1");
+
+    // Mapping بين أسماء المستخدمين والـ public keys
+    const users = {
+      Ahmed: {
+        connection: { hostname: "localhost", port: 3004 },
+        keyPair: {
+          public: "0495189959143af62629f8d5ffe22c128b7958af6a398973a82d10c48bb5c580c9a5f8d700d84b8ed6c4abcb5766258617dffd268d25f7a3ace631aca639cd39ec",
+          private: "ecc29404b4791d738567fe0ef42ccade0432332bd940b6db5060ef25ff470631"
+        }
+      },
+      Magdy: {
+        connection: { hostname: "localhost", port: 3006 },
+        keyPair: {
+          public: "04bd8cf29b09c98335aa58ad960bf99d8aeef3ba694922a506e56913d25678d4a45e8f4f19d2f37f9b9be1491f95ba4c9aa6cfb6ca0a666a5fe7999cb9be865b1c",
+          private: "daec2a629455528c9970a701cda07451583fb1a2afe386501bcd9198f965dab5"
+        }
+      },
+      Hazrd: {
+        connection: { hostname: "localhost", port: 3008 },
+        keyPair: {
+          public: "047c720dddc120bc9ca23702fed8a71d11683172063fb485299840293829f6750bdfbfca209dd28686f42d9e866dd5ef579fa46898842aff1153cc9498518c7880",
+          private: "7ffa2fbb5e6aae6a56f4587def8afe6cdd7a38b00c9e5f6d4dc38b64ace9bb74"
+        }
+      },
+      Ashraf: {
+        connection: { hostname: "localhost", port: 3010 },
+        keyPair: {
+          public: "046babf95f320895244b75dc1f6dfc6222b4af596e2c4df605aecc84d470139266b131e58f932ebf724f2621f46d2697cce871a1e5aaa794f556faa884edfb48c6",
+          private: "b438d84ff94eef7788012320a48b4803c5f8f816aa53561d7c1bca3e685ace39"
+        }
+      },
+      Mostafa: {
+        connection: { hostname: "localhost", port: 3000 },
+        keyPair: {
+          public: "04a8e06ab7ca8a5ef4181fa062f39c73f8629f6a6e8da0fc0786ab08320d5f54e42d3b134b857f32c815c43ffc5c45a917083c77f3f8f00f11981c2b5db906c85d",
+          private: "8dd22b96dc231b8bcda8cc60166276349499408535091f18ad45a601b07437cf"
+        }
+      },
+      Doctor: {
+        connection: { hostname: "localhost", port: 3002 },
+        keyPair: {
+          public: "0460258b7e2c580fbb5fa71e9b74533aef66bd7e92e15bbf921c32ebdfeb196ba665e92f814a40f03fcd71da0e886b43ffac283641c63f693f5e3b8cdc5fa59a38",
+          private: "9dce1ba4e5699ec4c020103dcde7df1915a753c76337cb70d53adffeba2407f2"
+        }
+      }
+    };
+
+    const nodeSelect = document.getElementById("node-select");
+    const balanceDisplay = document.getElementById("balance-display");
+    const toInput = document.getElementById("to");
+    const amountInput = document.getElementById("amount");
+    const feeInput = document.getElementById("fee");
+    const sendButton = document.getElementById("send-button");
+    const sendText = document.getElementById("send-text");
+    const loadingSpinner = document.getElementById("loading-spinner");
+    const checkBalanceButton = document.getElementById("check-balance-button");
+
+    if (!nodeSelect) {
+      console.error("node-select element not found");
+    } else {
+      nodeSelect.innerHTML = `
+        <option value="Ahmed">Ahmed (localhost:3004)</option>
+        <option value="Magdy">Magdy (localhost:3006)</option>
+        <option value="Hazrd">Hazrd (localhost:3008)</option>
+        <option value="Ashraf">Ashraf (localhost:3010)</option>
+        <option value="Mostafa">Mostafa (localhost:3000)</option>
+        <option value="Doctor">Doctor (localhost:3002)</option>
+      `;
+      console.log("Dropdown initialized with 6 users");
+    }
+
+    let selectedNode = users.Mostafa;
+
+    if (nodeSelect) {
+      nodeSelect.addEventListener("change", (e) => {
+        selectedNode = users[e.target.value];
+        console.log("Selected node:", selectedNode);
+        updateBalance();
+      });
+    }
+
+    if (checkBalanceButton) {
+      checkBalanceButton.addEventListener("click", updateBalance);
+    }
+
+    if (sendButton) {
+      sendButton.addEventListener("click", async () => {
+        const toUser = toInput.value;
+        const amount = parseInt(amountInput.value);
+        const fee = parseInt(feeInput.value);
+
+        if (!toUser || isNaN(amount) || isNaN(fee) || amount <= 0 || fee <= 0) {
+          alert("Please select a recipient and enter valid positive numbers for Amount and Fee");
+          return;
+        }
+
+        if (toUser === nodeSelect.value) {
+          alert("Cannot send transaction to the same user");
+          return;
+        }
+
+        // تحويل اسم الـ user إلى public key
+        const toPublicKey = users[toUser].keyPair.public;
+
+        // Show loading state
+        sendButton.disabled = true;
+        sendText.textContent = "Loading";
+        loadingSpinner.classList.remove("hidden");
+        loadingSpinner.classList.add("active");
+
+        try {
+          const nodeUrl = `http://${selectedNode.connection.hostname}:${selectedNode.connection.port}`;
+          const publicKey = selectedNode.keyPair.public;
+          const privateKey = selectedNode.keyPair.private;
+
+          const hash = sha256(`${publicKey}${toPublicKey}${amount}${fee}`);
+          const keyPair = curve.keyFromPrivate(privateKey, "hex");
+          const signature = keyPair.sign(hash).toDER("hex");
+
+          console.log("Sending transaction with body:", {
+            from: publicKey,
+            to: toPublicKey,
+            amount,
+            fee,
+            signature,
+          });
+
+          const response = await fetch(`${nodeUrl}/transaction`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: publicKey,
+              to: toPublicKey,
+              amount,
+              fee,
+              signature,
+            }),
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            alert("Transaction sent successfully!");
+            updateBalance();
+          } else {
+            alert(`Error: ${result.error}`);
+          }
+        } catch (error) {
+          console.error("Error sending transaction:", error);
+          alert(`Failed to send transaction: ${error.message}`);
+        } finally {
+          // Reset button state
+          sendButton.disabled = false;
+          sendText.textContent = "Send Transaction";
+          loadingSpinner.classList.add("hidden");
+          loadingSpinner.classList.remove("active");
+        }
+      });
+    }
+
+    async function updateBalance() {
+      try {
+        const nodeUrl = `http://${selectedNode.connection.hostname}:${selectedNode.connection.port}`;
+        const publicKey = selectedNode.keyPair.public;
+
+        const response = await fetch(`${nodeUrl}/balances`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const balances = await response.json();
+        const balance = balances[publicKey] || 0;
+        balanceDisplay.textContent = `Balance: ${balance} EGP`;
+      } catch (error) {
+        console.error("Error fetching balances:", error);
+        balanceDisplay.textContent = `Error fetching balance: ${error.message}`;
+      }
+    }
+
+    updateBalance();
+  </script>
+</body>
+</html>
