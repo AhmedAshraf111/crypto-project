@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Web App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/elliptic/6.5.4/elliptic.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.9.0/src/sha256.min.js"></script>
+  <style>
+    select, input, button {
+      transition: all 0.3s ease;
+    }
+    select:focus, input:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px #3b82f6;
+    }
+    button:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex items-start justify-center pt-10">
+  <div class="container max-w-6xl mx-auto p-6 flex space-x-6">
+    <!-- Clients Section -->
+    <div class="w-1/2 bg-gray-800 rounded-lg shadow-lg p-6">
+      <h1 class="text-2xl font-bold text-center mb-6 text-blue-400">Clients</h1>
+
+      <!-- Register Section (Clients) -->
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-4">Register Client</h2>
+        <div class="space-y-4">
+          <div>
+            <label for="client-name" class="block text-sm font-medium mb-1">Client Name</label>
+            <input id="client-name" placeholder="Enter client name" class="w-full bg-gray-700 text-white rounded-lg p-2">
+          </div>
+          <button id="register-client-button" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">
+            Register Client
+          </button>
+        </div>
+      </div>
+
+      <!-- Balance Section with Sender Selection -->
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-4">Your Balance</h2>
+        <div class="space-y-2">
+          <div>
+            <label for="from" class="block text-sm font-medium mb-1">Select Sender</label>
+            <select id="from" class="w-full bg-gray-700 text-white rounded-lg p-2">
+              <option value="">Select Sender</option>
+            </select>
+          </div>
+          <p id="sender-balance" class="text-sm text-gray-400">Sender Balance: Select a sender</p>
+          <div class="flex items-center justify-between">
+            <p id="client-balance-display" class="text-2xl font-bold text-blue-400">Balance: Please select a sender</p>
+            <button id="check-client-balance-button" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">Refresh</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transaction Section -->
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-4">Send Transaction</h2>
+        <div class="space-y-4">
+          <div>
+            <label for="to" class="block text-sm font-medium mb-1">To</label>
+            <select id="to" class="w-full bg-gray-700 text-white rounded-lg p-2">
+              <option value="">Select Recipient</option>
+            </select>
+          </div>
+          <div>
+            <p id="recipient-balance" class="text-sm text-gray-400">Recipient Balance: Select a recipient</p>
+          </div>
+          <div>
+            <label for="amount" class="block text-sm font-medium mb-1">Amount</label>
+            <input type="number" id="amount" min="1" placeholder="Enter amount" class="w-full bg-gray-700 text-white rounded-lg p-2">
+          </div>
+          <div>
+            <label for="fee" class="block text-sm font-medium mb-1">Fee</label>
+            <input type="number" id="fee" min="1" placeholder="Enter fee" class="w-full bg-gray-700 text-white rounded-lg p-2">
+          </div>
+          <button id="send-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg">
+            Send Transaction
+          </button>
+        </div>
+      </div>
+
+      <!-- Pending Transactions Section -->
+      <div>
+        <h2 class="text-xl font-semibold mb-4">Pending Transactions</h2>
+        <div id="pending-transactions" class="space-y-2">
+          <p class="text-gray-400">No pending transactions</p>
+        </div>
+        <button id="refresh-pending-button" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">Refresh</button>
+      </div>
+    </div>
+
+    <!-- Miners Section -->
+    <div class="w-1/2 bg-gray-800 rounded-lg shadow-lg p-6">
+      <h1 class="text-2xl font-bold text-center mb-6 text-purple-400">Miners</h1>
+
+      <!-- Register Section (Miners) -->
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-4">Register Miner</h2>
+        <div class="space-y-4">
+          <div>
+            <label for="miner-name" class="block text-sm font-medium mb-1">Miner Name</label>
+            <input id="miner-name" placeholder="Enter miner name" class="w-full bg-gray-700 text-white rounded-lg p-2">
+          </div>
+          <button id="register-miner-button" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg">
+            Register Miner
+          </button>
+        </div>
+      </div>
+
+      <!-- Select Miner Section -->
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-4">Select Miner</h2>
+        <div class="space-y-2">
+          <div>
+            <label for="miner-select" class="block text-sm font-medium mb-1">Select Miner</label>
+            <select id="miner-select" class="w-full bg-gray-700 text-white rounded-lg p-2">
+              <option value="">Select Miner</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Miner Balance Section -->
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold mb-4">Miner Balance</h2>
+        <div class="flex items-center justify-between">
+          <p id="miner-balance-display" class="text-2xl font-bold text-purple-400">Balance: Please select a miner</p>
+          <button id="check-miner-balance-button" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg">Refresh</button>
+        </div>
+      </div>
+
+      <!-- Mining Section -->
+      <div>
+        <h2 class="text-xl font-semibold mb-4">Mine Transactions</h2>
+        <button id="mine-button" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg">
+          Start Mining
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const curve = new elliptic.ec("secp256k1");
+    const serverUrl = "http://localhost:3000";
+
+    let keyPair = null;
+    let publicKey = null;
+    let users = [];
+
+    const clientNameInput = document.getElementById("client-name");
+    const registerClientButton = document.getElementById("register-client-button");
+    const clientBalanceDisplay = document.getElementById("client-balance-display");
+    const checkClientBalanceButton = document.getElementById("check-client-balance-button");
+    const fromSelect = document.getElementById("from");
+    const senderBalanceDisplay = document.getElementById("sender-balance");
+    const toSelect = document.getElementById("to");
+    const recipientBalanceDisplay = document.getElementById("recipient-balance");
+    const amountInput = document.getElementById("amount");
+    const feeInput = document.getElementById("fee");
+    const sendButton = document.getElementById("send-button");
+    const pendingTransactionsDiv = document.getElementById("pending-transactions");
+    const refreshPendingButton = document.getElementById("refresh-pending-button");
+
+    const minerNameInput = document.getElementById("miner-name");
+    const registerMinerButton = document.getElementById("register-miner-button");
+    const minerSelect = document.getElementById("miner-select");
+    const minerBalanceDisplay = document.getElementById("miner-balance-display");
+    const checkMinerBalanceButton = document.getElementById("check-miner-balance-button");
+    const mineButton = document.getElementById("mine-button");
+
+    // Generates a new public-private key pair for a user (client or miner).
+    function generateKeyPair() {
+      const newKeyPair = curve.genKeyPair();
+      const newPublicKey = newKeyPair.getPublic("hex");
+      console.log("Generated public key:", newPublicKey.substring(0, 10) + "...");
+      return { keyPair: newKeyPair, publicKey: newPublicKey };
+    }
+
+    // Updates the dropdown lists for sender, recipient, and miner, and maintains their selected states.
+    async function updateUsersList() {
+      try {
+        const currentSenderIndex = fromSelect.selectedIndex;
+        const currentRecipientIndex = toSelect.selectedIndex;
+        const currentMinerIndex = minerSelect.selectedIndex;
+
+        const response = await fetch(`${serverUrl}/balances`);
+        const balances = await response.json();
+        fromSelect.innerHTML = '<option value="">Select Sender</option>';
+        toSelect.innerHTML = '<option value="">Select Recipient</option>';
+        minerSelect.innerHTML = '<option value="">Select Miner</option>';
+        users.forEach((user, index) => {
+          if (user.nodeType === "client") {
+            const fromOption = document.createElement("option");
+            fromOption.value = user.publicKey;
+            fromOption.textContent = user.name;
+            fromSelect.appendChild(fromOption);
+
+            const toOption = document.createElement("option");
+            toOption.value = user.publicKey;
+            toOption.textContent = user.name;
+            toSelect.appendChild(toOption);
+          }
+
+          if (user.nodeType === "miner") {
+            const minerOption = document.createElement("option");
+            minerOption.value = user.publicKey;
+            minerOption.textContent = user.name;
+            minerSelect.appendChild(minerOption);
+          }
+        });
+
+        fromSelect.selectedIndex = currentSenderIndex;
+        toSelect.selectedIndex = currentRecipientIndex;
+        minerSelect.selectedIndex = currentMinerIndex;
+
+        if (!fromSelect.value) {
+          senderBalanceDisplay.textContent = "Sender Balance: Select a sender";
+          clientBalanceDisplay.textContent = "Balance: Please select a sender";
+        }
+        if (!toSelect.value) {
+          recipientBalanceDisplay.textContent = "Recipient Balance: Select a recipient";
+        }
+        if (!minerSelect.value) {
+          minerBalanceDisplay.textContent = "Balance: Please select a miner";
+        }
+      } catch (error) {
+        console.error("Error updating users list:", error);
+      }
+    }
+
+    // Updates the balance display for the selected sender (client).
+    async function updateSenderBalance() {
+      const selectedPublicKey = fromSelect.value;
+      if (!selectedPublicKey) {
+        senderBalanceDisplay.textContent = "Sender Balance: Select a sender";
+        clientBalanceDisplay.textContent = "Balance: Please select a sender";
+        return;
+      }
+      try {
+        const response = await fetch(`${serverUrl}/balances`);
+        const balances = await response.json();
+        const balance = balances[selectedPublicKey] || 0;
+        senderBalanceDisplay.textContent = `Sender Balance: ${balance} EGP`;
+        clientBalanceDisplay.textContent = `Balance: ${balance} EGP`;
+      } catch (error) {
+        console.error("Error fetching sender balance:", error);
+        senderBalanceDisplay.textContent = "Sender Balance: Error";
+        clientBalanceDisplay.textContent = "Balance: Error";
+      }
+    }
+
+    // Updates the balance display for the selected recipient.
+    async function updateRecipientBalance() {
+      const selectedPublicKey = toSelect.value;
+      if (!selectedPublicKey) {
+        recipientBalanceDisplay.textContent = "Recipient Balance: Select a recipient";
+        return;
+      }
+      try {
+        const response = await fetch(`${serverUrl}/balances`);
+        const balances = await response.json();
+        const balance = balances[selectedPublicKey] || 0;
+        recipientBalanceDisplay.textContent = `Recipient Balance: ${balance} EGP`;
+      } catch (error) {
+        console.error("Error fetching recipient balance:", error);
+        recipientBalanceDisplay.textContent = "Recipient Balance: Error";
+      }
+    }
+
+    // Updates the balance display for the selected miner.
+    async function updateMinerBalance(minerPublicKey) {
+      if (!minerPublicKey) {
+        minerBalanceDisplay.textContent = "Balance: Please select a miner";
+        return;
+      }
+      try {
+        const response = await fetch(`${serverUrl}/balances`);
+        const balances = await response.json();
+        const balance = balances[minerPublicKey] || 0;
+        minerBalanceDisplay.textContent = `Balance: ${balance} EGP`;
+      } catch (error) {
+        console.error("Miner balance error:", error);
+        minerBalanceDisplay.textContent = `Error: ${error.message}`;
+      }
+    }
+
+    // Fetches and displays the list of pending transactions in the UI.
+    async function updatePendingTransactions() {
+      try {
+        const response = await fetch(`${serverUrl}/transactions`);
+        const transactions = await response.json();
+        pendingTransactionsDiv.innerHTML = "";
+        if (transactions.length === 0) {
+          pendingTransactionsDiv.innerHTML = '<p class="text-gray-400">No pending transactions</p>';
+        } else {
+          transactions.forEach(tx => {
+            const txDiv = document.createElement("div");
+            txDiv.className = "bg-gray-700 p-2 rounded-lg";
+            txDiv.textContent = `From: ${tx.from.substring(0, 10)}... To: ${tx.to.substring(0, 10)}... Amount: ${tx.amount} Fee: ${tx.fee}`;
+            pendingTransactionsDiv.appendChild(txDiv);
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching pending transactions:", error);
+        pendingTransactionsDiv.innerHTML = '<p class="text-red-400">Error fetching transactions</p>';
+      }
+    }
+
+    // Handles the registration of a new client by generating a key pair and registering it with the server.
+    registerClientButton.addEventListener("click", async () => {
+      const clientName = clientNameInput.value.trim();
+      if (!clientName) {
+        alert("Please enter a client name");
+        return;
+      }
+
+      // Check if the name already exists in the users list
+      const nameExists = users.some(user => user.name.toLowerCase() === clientName.toLowerCase());
+      if (nameExists) {
+        alert("This name is already taken. Please choose a different name.");
+        return;
+      }
+
+      const newKeys = generateKeyPair();
+      const user = {
+        name: clientName,
+        publicKey: newKeys.publicKey,
+        keyPair: newKeys.keyPair,
+        nodeType: "client"
+      };
+      try {
+        const response = await fetch(`${serverUrl}/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publicKey: user.publicKey })
+        });
+        const result = await response.json();
+        if (result.success) {
+          console.log(`Registered new client: ${user.publicKey.substring(0, 10)}...`);
+          alert(`Registered as ${clientName} (Client)`);
+          users.push(user);
+          updateUsersList();
+          updateSenderBalance();
+        } else {
+          console.error("Registration failed:", result.error);
+          alert(`Failed to register: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("Register error:", error);
+        alert("Failed to register");
+      }
+    });
+
+    // Handles the registration of a new miner by generating a key pair and registering it with the server.
+    registerMinerButton.addEventListener("click", async () => {
+      const minerName = minerNameInput.value.trim();
+      if (!minerName) {
+        alert("Please enter a miner name");
+        return;
+      }
+
+      // Check if the name already exists in the users list
+      const nameExists = users.some(user => user.name.toLowerCase() === minerName.toLowerCase());
+      if (nameExists) {
+        alert("This name is already taken. Please choose a different name.");
+        return;
+      }
+
+      const newKeys = generateKeyPair();
+      const user = {
+        name: minerName,
+        publicKey: newKeys.publicKey,
+        keyPair: newKeys.keyPair,
+        nodeType: "miner"
+      };
+      try {
+        const response = await fetch(`${serverUrl}/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publicKey: user.publicKey })
+        });
+        const result = await response.json();
+        if (result.success) {
+          console.log(`Registered new miner: ${user.publicKey.substring(0, 10)}...`);
+          alert(`Registered as ${minerName} (Miner)`);
+          users.push(user);
+          updateUsersList();
+          updateMinerBalance(user.publicKey);
+        } else {
+          console.error("Registration failed:", result.error);
+          alert(`Failed to register: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("Register error:", error);
+        alert("Failed to register");
+      }
+    });
+
+    // Handles sending a transaction by signing it with the sender's private key and sending it to the server.
+    sendButton.addEventListener("click", async () => {
+      const from = fromSelect.value;
+      const to = toSelect.value;
+      const amount = Number(amountInput.value);
+      const fee = Number(feeInput.value);
+
+      if (!from || !to || isNaN(amount) || isNaN(fee) || amount <= 0 || fee <= 0) {
+        alert("Please select sender and recipient, and enter valid amount and fee");
+        return;
+      }
+
+      // Check if the sender and recipient are the same
+      if (from === to) {
+        alert("Please change recipient");
+        return;
+      }
+
+      const sender = users.find(u => u.publicKey === from);
+      if (!sender || !sender.keyPair) {
+        alert("Cannot sign transaction: Key pair not found for this sender. Please re-register.");
+        return;
+      }
+
+      if (sender.nodeType !== "client") {
+        alert("Only clients can send transactions");
+        return;
+      }
+
+      try {
+        const hash = sha256(`${from}${to}${amount}${fee}`);
+        const signature = sender.keyPair.sign(hash).toDER("hex");
+        const body = JSON.stringify({ from, to, amount, fee, signature });
+        console.log("Sending transaction:", JSON.parse(body));
+
+        const response = await fetch(`${serverUrl}/transaction`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          alert("Transaction recorded in pending transactions!");
+          updatePendingTransactions();
+          updateSenderBalance();
+        } else {
+          alert(`Error: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("Transaction error:", error);
+        alert(`Failed to send transaction: ${error.message}`);
+      }
+    });
+
+    // Handles the mining process by fetching pending transactions, performing proof-of-work, and submitting the block to the server.
+    mineButton.addEventListener("click", async () => {
+      const selectedMinerPublicKey = minerSelect.value;
+      const miner = users.find(u => u.publicKey === selectedMinerPublicKey && u.nodeType === "miner");
+      if (!miner) {
+        alert("Please select a miner to start mining!");
+        return;
+      }
+
+      mineButton.disabled = true;
+      try {
+        const response = await fetch(`${serverUrl}/transactions`, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" }
+        });
+        const transactions = await response.json();
+        console.log("Fetched transactions for mining:", transactions);
+
+        if (!transactions || transactions.length === 0) {
+          alert("No transactions to mine");
+          mineButton.disabled = false;
+          return;
+        }
+
+        const timestamp = new Date().toISOString();
+        let nonce = 0;
+        let hash;
+        while (true) {
+          const blockData = JSON.stringify({ transactions, nonce, timestamp });
+          console.log("blockData:", blockData);
+          hash = sha256(blockData);
+          if (hash.startsWith("0".repeat(4))) {
+            break;
+          }
+          nonce++;
+        }
+        console.log("Mined block:", { nonce, hash, timestamp });
+
+        const body = JSON.stringify({ minerPublicKey: miner.publicKey, transactions, nonce, hash, timestamp });
+        const mineResponse = await fetch(`${serverUrl}/mine`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body
+        });
+
+        const result = await mineResponse.json();
+        if (result.success) {
+          alert("Block mined successfully! Reward: 10");
+          updateMinerBalance(miner.publicKey);
+          updatePendingTransactions();
+          updateUsersList();
+          updateSenderBalance();
+        } else {
+          alert(`Error: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("Mining error:", error);
+        alert("Failed to mine block");
+      } finally {
+        mineButton.disabled = false;
+      }
+    });
+
+    // Updates the client's balance display based on the selected sender.
+    async function updateClientBalance() {
+      const selectedPublicKey = fromSelect.value;
+      if (!selectedPublicKey) {
+        clientBalanceDisplay.textContent = "Balance: Please select a sender";
+        return;
+      }
+      try {
+        const response = await fetch(`${serverUrl}/balances`);
+        const balances = await response.json();
+        clientBalanceDisplay.textContent = `Balance: ${balances[selectedPublicKey] || 0} EGP`;
+      } catch (error) {
+        console.error("Client balance error:", error);
+        clientBalanceDisplay.textContent = `Error: ${error.message}`;
+      }
+    }
+
+    // Event listener to update the miner's balance when a miner is selected.
+    minerSelect.addEventListener("change", () => {
+      const selectedMinerPublicKey = minerSelect.value;
+      updateMinerBalance(selectedMinerPublicKey);
+    });
+
+    // Event listener to update the sender's balance when a sender is selected.
+    fromSelect.addEventListener("change", () => {
+      updateSenderBalance();
+      updateClientBalance();
+    });
+
+    // Event listener to update the recipient's balance when a recipient is selected.
+    toSelect.addEventListener("change", updateRecipientBalance);
+
+    // Event listener to manually refresh the client's balance.
+    checkClientBalanceButton.addEventListener("click", updateClientBalance);
+
+    // Event listener to manually refresh the miner's balance.
+    checkMinerBalanceButton.addEventListener("click", () => {
+      const selectedMinerPublicKey = minerSelect.value;
+      updateMinerBalance(selectedMinerPublicKey);
+    });
+
+    // Event listener to manually refresh the list of pending transactions.
+    refreshPendingButton.addEventListener("click", updatePendingTransactions);
+
+    // Automatically updates the pending transactions every 5 seconds.
+    setInterval(updatePendingTransactions, 5000);
+
+    // Automatically updates the users list every 5 seconds.
+    setInterval(updateUsersList, 5000);
+
+    // Initial call to update the pending transactions on page load.
+    updatePendingTransactions();
+
+    // Initial call to update the users list on page load.
+    updateUsersList();
+  </script>
+</body>
+</html>
